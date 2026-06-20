@@ -44,6 +44,33 @@ final class KeealCheckoutClientTest extends TestCase
         self::assertStringContainsString('Idempotency-Key:', $joined);
     }
 
+    public function test_create_session_sends_subscription_mode_body(): void
+    {
+        $fake = new FakeHttpTransport([
+            ['status' => 200, 'body' => '{"id":"cs_sub","url":"https://pay.keeal.test/cs_sub"}'],
+        ]);
+
+        $this->fakeKeealCheckoutHttp($fake);
+
+        $client = $this->app->make(KeealCheckout::class);
+
+        $client->createSession([
+            'mode' => 'subscription',
+            'subscription_data' => [
+                'price_id' => 'price_catalog_abc',
+                'auto_charge_enabled' => true,
+            ],
+            'success_url' => 'https://shop.test/welcome',
+            'cancel_url' => 'https://shop.test/pricing',
+        ]);
+
+        self::assertCount(1, $fake->requests);
+        $body = json_decode($fake->requests[0]['body'] ?? '', true, 512, JSON_THROW_ON_ERROR);
+        self::assertSame('subscription', $body['mode']);
+        self::assertSame('price_catalog_abc', $body['subscription_data']['price_id']);
+        self::assertTrue($body['subscription_data']['auto_charge_enabled']);
+    }
+
     public function test_throws_when_api_credentials_missing(): void
     {
         $this->expectException(\InvalidArgumentException::class);

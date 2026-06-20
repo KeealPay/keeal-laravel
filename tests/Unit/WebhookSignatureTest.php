@@ -38,4 +38,17 @@ final class WebhookSignatureTest extends TestCase
         $this->app['config']->set('keeal.webhook_secret', '');
         self::assertFalse(WebhookSignature::verify('{}', 't=1,v1=ab'));
     }
+
+    public function test_construct_event_returns_decoded_payload(): void
+    {
+        $raw = '{"id":"evt_1","type":"checkout.session.completed","data":{"object":{}}}';
+        $t = (string) time();
+        $secret = 'whsec_test_fixture_secret';
+        $v1 = hash_hmac('sha256', $t . '.' . $raw, $secret, false);
+
+        $event = WebhookSignature::constructEvent($raw, 't=' . $t . ',v1=' . $v1);
+
+        self::assertSame('checkout.session.completed', $event['type']);
+        self::assertSame('evt_1', $event['id']);
+    }
 }
